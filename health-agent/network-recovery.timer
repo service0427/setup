@@ -1,0 +1,10 @@
+[Unit]
+Description=Network Recovery Timer (5분마다)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

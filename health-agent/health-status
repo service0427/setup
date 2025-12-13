@@ -1,0 +1,183 @@
+#!/bin/bash
+#===============================================================================
+# 시스템 상태 확인 CLI (health-status)
+# 사용법: health-status [옵션]
+#
+# 옵션:
+#   (없음)    현재 상태 요약
+#   -f        전체 정보 출력
+#   -j        JSON 형식 출력
+#   -w        실시간 모니터링 (watch)
+#   -l        최근 로그 확인
+#   -h        도움말
+#===============================================================================
+
+DATA_FILE="/opt/health-agent/data/current.json"
+LOG_FILE="/var/log/health-agent/agent.log"
+
+print_help() {
+    cat << 'EOF'
+사용법: health-status [옵션]
+
+옵션:
+  (없음)    현재 상태 요약
+  -f        전체 정보 출력
+  -j        JSON 형식 출력
+  -w        실시간 모니터링 (2초마다 갱신)
+  -l        최근 로그 확인 (20줄)
+  -h        도움말
+
+예시:
+  health-status         # 상태 요약
+  health-status -f      # 전체 정보
+  health-status -w      # 실시간 모니터링
+  watch -n 2 health-status  # 2초마다 갱신
+EOF
+}
+
+print_summary() {
+    HOSTNAME=$(hostname)
+    IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)
+    ANYDESK=$(anydesk --get-id 2>/dev/null || echo "N/A")
+    UPTIME=$(uptime -p 2>/dev/null || echo "N/A")
+
+    # CPU & Memory
+    CPU=$(top -bn1 | grep "Cpu(s)" | awk '{printf "%.0f", 100 - $8}')
+    MEM=$(free | awk '/^Mem:/{printf "%.0f", $3/$2*100}')
+    DISK=$(df / | awk 'NR==2{print $5}' | tr -d '%')
+
+    # Load
+    LOAD=$(cat /proc/loadavg | awk '{print $1, $2, $3}')
+
+    # Network
+    if ping -c 1 -W 1 8.8.8.8 &>/dev/null; then
+        NET="OK"
+        NET_COLOR="\033[32m"
+    else
+        NET="DOWN"
+        NET_COLOR="\033[31m"
+    fi
+
+    # Agent
+    if pgrep -f "index-vpn-multi.js" >/dev/null; then
+        AGENT="Running"
+        AGENT_COLOR="\033[32m"
+    else
+        AGENT="Stopped"
+        AGENT_COLOR="\033[33m"
+    fi
+
+    # Chrome count
+    CHROME=$(pgrep -c chrome 2>/dev/null || echo "0")
+
+    # VPN namespaces
+    VPN_NS=$(ip netns list 2>/dev/null | grep -c "U22-\|vpn-" || echo "0")
+
+    # 색상 설정
+    NC="\033[0m"
+    if [ "$CPU" -gt 80 ]; then CPU_COLOR="\033[31m"; elif [ "$CPU" -gt 50 ]; then CPU_COLOR="\033[33m"; else CPU_COLOR="\033[32m"; fi
+    if [ "$MEM" -gt 80 ]; then MEM_COLOR="\033[31m"; elif [ "$MEM" -gt 50 ]; then MEM_COLOR="\033[33m"; else MEM_COLOR="\033[32m"; fi
+    if [ "$DISK" -gt 80 ]; then DISK_COLOR="\033[31m"; elif [ "$DISK" -gt 50 ]; then DISK_COLOR="\033[33m"; else DISK_COLOR="\033[32m"; fi
+
+    echo ""
+    echo -e "\033[1m===== $HOSTNAME =====\033[0m"
+    echo ""
+    echo -e "  IP:       $IP"
+    echo -e "  AnyDesk:  $ANYDESK"
+    echo -e "  Uptime:   $UPTIME"
+    echo ""
+    echo -e "  CPU:      ${CPU_COLOR}${CPU}%${NC}    Load: $LOAD"
+    echo -e "  Memory:   ${MEM_COLOR}${MEM}%${NC}"
+    echo -e "  Disk:     ${DISK_COLOR}${DISK}%${NC}"
+    echo ""
+    echo -e "  Network:  ${NET_COLOR}${NET}${NC}"
+    echo -e "  Agent:    ${AGENT_COLOR}${AGENT}${NC}"
+    echo -e "  Chrome:   ${CHROME} processes"
+    echo -e "  VPN NS:   ${VPN_NS} namespaces"
+    echo ""
+}
+
+print_full() {
+    print_summary
+
+    echo -e "\033[1m===== 상세 정보 =====\033[0m"
+    echo ""
+
+    # 메모리 상세
+    echo "[ 메모리 ]"
+    free -h
+    echo ""
+
+    # 디스크 상세
+    echo "[ 디스크 ]"
+    df -h / /home 2>/dev/null | head -5
+    echo ""
+
+    # 프로세스
+    echo "[ 주요 프로세스 ]"
+    ps aux --sort=-%mem | head -10
+    echo ""
+
+    # 서비스 상태
+    echo "[ 서비스 ]"
+    echo -n "  AnyDesk:  "; systemctl is-active anydesk 2>/dev/null || echo "unknown"
+    echo -n "  SSH:      "; systemctl is-active ssh 2>/dev/null || echo "unknown"
+    echo -n "  Health:   "; systemctl is-active health-agent.timer 2>/dev/null || echo "not installed"
+    echo -n "  Network:  "; systemctl is-active network-recovery.timer 2>/dev/null || echo "not installed"
+    echo ""
+}
+
+print_json() {
+    if [ -f "$DATA_FILE" ]; then
+        cat "$DATA_FILE"
+    else
+        echo '{"error": "No data file found. Run health-agent.sh first."}'
+    fi
+}
+
+print_logs() {
+    if [ -f "$LOG_FILE" ]; then
+        echo "===== 최근 로그 (health-agent) ====="
+        tail -n 20 "$LOG_FILE"
+    else
+        echo "로그 파일 없음: $LOG_FILE"
+    fi
+
+    echo ""
+    NETWORK_LOG="/var/log/health-agent/network-recovery.log"
+    if [ -f "$NETWORK_LOG" ]; then
+        echo "===== 최근 로그 (network-recovery) ====="
+        tail -n 10 "$NETWORK_LOG"
+    fi
+}
+
+watch_mode() {
+    while true; do
+        clear
+        print_summary
+        echo -e "\033[2m(Ctrl+C로 종료, 2초마다 갱신)\033[0m"
+        sleep 2
+    done
+}
+
+# 메인
+case "$1" in
+    -h|--help)
+        print_help
+        ;;
+    -f|--full)
+        print_full
+        ;;
+    -j|--json)
+        print_json
+        ;;
+    -w|--watch)
+        watch_mode
+        ;;
+    -l|--log)
+        print_logs
+        ;;
+    *)
+        print_summary
+        ;;
+esac

@@ -13,7 +13,7 @@
 set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.2.0"
+SCRIPT_VERSION="1.3.0"
 
 # 실제 사용자 확인 (sudo로 실행해도 원래 사용자 찾기)
 if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
@@ -58,7 +58,7 @@ echo ""
 #---------------------------------------
 # 1. 타임존 설정 (KST)
 #---------------------------------------
-echo "[1/22] 타임존 설정 (Asia/Seoul)..."
+echo "[1/24] 타임존 설정 (Asia/Seoul)..."
 CURRENT_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null)
 if [ "$CURRENT_TZ" != "Asia/Seoul" ]; then
     sudo timedatectl set-timezone Asia/Seoul
@@ -70,7 +70,7 @@ fi
 #---------------------------------------
 # 2. 기본 패키지 설치
 #---------------------------------------
-echo "[2/22] 기본 패키지 설치..."
+echo "[2/24] 기본 패키지 설치..."
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y \
     curl git openssh-server htop wget gnupg \
@@ -81,7 +81,7 @@ sudo apt install -y \
 #---------------------------------------
 # 3. Node.js 22.x 설치
 #---------------------------------------
-echo "[3/22] Node.js 22.x 설치..."
+echo "[3/24] Node.js 22.x 설치..."
 if ! command -v node &> /dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     sudo apt-get install -y nodejs
@@ -101,7 +101,7 @@ fi
 #---------------------------------------
 # 4. Python 3.11+ 설치 (deadsnakes PPA)
 #---------------------------------------
-echo "[4/22] Python 3.11 설치..."
+echo "[4/24] Python 3.11 설치..."
 if ! command -v python3.11 &> /dev/null; then
     sudo add-apt-repository -y ppa:deadsnakes/ppa
     sudo apt update
@@ -119,7 +119,7 @@ fi
 #---------------------------------------
 # 5. Google Chrome 설치
 #---------------------------------------
-echo "[5/22] Google Chrome 설치..."
+echo "[5/24] Google Chrome 설치..."
 if ! command -v google-chrome &> /dev/null; then
     sudo install -d -m 0755 /etc/apt/keyrings
     wget -qO- https://dl.google.com/linux/linux_signing_key.pub | sudo tee /etc/apt/keyrings/google.asc >/dev/null
@@ -136,7 +136,7 @@ fi
 #---------------------------------------
 # 6. Playwright/Patchright 브라우저 의존성
 #---------------------------------------
-echo "[6/22] 브라우저 자동화 의존성 설치..."
+echo "[6/24] 브라우저 자동화 의존성 설치..."
 sudo apt install -y \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
@@ -149,7 +149,7 @@ echo "브라우저 의존성 설치 완료"
 #---------------------------------------
 # 7. WireGuard VPN 설치
 #---------------------------------------
-echo "[7/22] WireGuard VPN 설치..."
+echo "[7/24] WireGuard VPN 설치..."
 if ! command -v wg &> /dev/null; then
     sudo apt install -y wireguard wireguard-tools
 
@@ -169,7 +169,7 @@ fi
 #---------------------------------------
 # 8. AnyDesk 설치 및 무인 접속 설정
 #---------------------------------------
-echo "[8/22] AnyDesk 설치..."
+echo "[8/24] AnyDesk 설치..."
 
 # AnyDesk 설정값
 ANYDESK_PASSWORD="Tech1324!"
@@ -227,7 +227,7 @@ fi
 #---------------------------------------
 # 9. 한글 입력기 설치 (fcitx5)
 #---------------------------------------
-echo "[9/22] 한글 입력기 설치..."
+echo "[9/24] 한글 입력기 설치..."
 if ! dpkg -l | grep -q fcitx5-hangul; then
     sudo apt install -y fcitx5 fcitx5-hangul
     sudo -u $REAL_USER im-config -n fcitx5
@@ -239,7 +239,7 @@ fi
 #---------------------------------------
 # 10. Snap 패키지 완전 제거
 #---------------------------------------
-echo "[10/22] Snap 패키지 제거..."
+echo "[10/24] Snap 패키지 제거..."
 if command -v snap &> /dev/null; then
     SNAP_COUNT=$(snap list 2>/dev/null | wc -l)
     if [ "$SNAP_COUNT" -gt 1 ]; then
@@ -280,7 +280,7 @@ fi
 #---------------------------------------
 # 11. CUPS (프린터) 서비스 비활성화
 #---------------------------------------
-echo "[11/22] CUPS 프린터 서비스 비활성화..."
+echo "[11/24] CUPS 프린터 서비스 비활성화..."
 if systemctl is-active --quiet cups.service 2>/dev/null; then
     sudo systemctl stop cups.service cups-browsed.service 2>/dev/null || true
     sudo systemctl disable cups.service cups-browsed.service 2>/dev/null || true
@@ -292,7 +292,7 @@ fi
 #---------------------------------------
 # 12. 자동 업데이트 비활성화
 #---------------------------------------
-echo "[12/22] 자동 업데이트 비활성화..."
+echo "[12/24] 자동 업데이트 비활성화..."
 sudo systemctl disable --now unattended-upgrades.service 2>/dev/null || true
 sudo systemctl disable --now apt-daily.service apt-daily.timer 2>/dev/null || true
 sudo systemctl disable --now apt-daily-upgrade.service apt-daily-upgrade.timer 2>/dev/null || true
@@ -305,7 +305,7 @@ echo "자동 업데이트 비활성화 완료"
 #---------------------------------------
 # 13. CPU Governor → Performance
 #---------------------------------------
-echo "[13/22] CPU Governor 설정..."
+echo "[13/24] CPU Governor 설정..."
 CURRENT_GOV=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
 if [ "$CURRENT_GOV" != "performance" ]; then
     # cpufrequtils 설치
@@ -330,7 +330,7 @@ fi
 #---------------------------------------
 # 14. 시스템 커널 파라미터 최적화
 #---------------------------------------
-echo "[14/22] 시스템 커널 파라미터 최적화..."
+echo "[14/24] 시스템 커널 파라미터 최적화..."
 
 # swappiness 낮추기 (RAM 우선 사용)
 if ! grep -q "vm.swappiness=10" /etc/sysctl.conf; then
@@ -377,7 +377,7 @@ sudo sysctl -p 2>/dev/null || true
 #---------------------------------------
 # 15. 스왑 파일 설정 (RAM 기반 동적 크기)
 #---------------------------------------
-echo "[15/22] 스왑 파일 설정..."
+echo "[15/24] 스왑 파일 설정..."
 
 # RAM 크기에 따른 스왑 크기 결정
 if [ "$TOTAL_RAM_GB" -le 8 ]; then
@@ -412,7 +412,7 @@ fi
 #---------------------------------------
 # 16. 자동 로그인 설정
 #---------------------------------------
-echo "[16/22] 자동 로그인 설정..."
+echo "[16/24] 자동 로그인 설정..."
 GDM_CONF="/etc/gdm3/custom.conf"
 if [ -f "$GDM_CONF" ]; then
     if ! grep -q "AutomaticLoginEnable=true" "$GDM_CONF" 2>/dev/null; then
@@ -433,7 +433,7 @@ fi
 #---------------------------------------
 # 17. sudoers 설정 (자주 사용하는 명령어 NOPASSWD)
 #---------------------------------------
-echo "[17/22] sudoers 설정..."
+echo "[17/24] sudoers 설정..."
 SUDOERS_FILE="/etc/sudoers.d/${REAL_USER}-automation"
 if [ ! -f "$SUDOERS_FILE" ]; then
     cat << EOF | sudo tee "$SUDOERS_FILE" > /dev/null
@@ -482,7 +482,7 @@ echo ""
 #---------------------------------------
 # 18. GNOME 검색 & Tracker 비활성화
 #---------------------------------------
-echo "[18/22] GNOME 검색 & Tracker 비활성화..."
+echo "[18/24] GNOME 검색 & Tracker 비활성화..."
 
 # GNOME 검색 프로바이더 비활성화
 sudo -u $REAL_USER gsettings set org.gnome.desktop.search-providers disable-external true 2>/dev/null || true
@@ -499,7 +499,7 @@ echo "GNOME 검색 & Tracker 비활성화 완료"
 #---------------------------------------
 # 19. 불필요 사용자 서비스 비활성화 + GUI 설정
 #---------------------------------------
-echo "[19/22] GUI 및 사용자 서비스 최적화..."
+echo "[19/24] GUI 및 사용자 서비스 최적화..."
 
 # Evolution 데이터 서버
 sudo -u $REAL_USER systemctl --user stop evolution-addressbook-factory.service 2>/dev/null || true
@@ -541,7 +541,7 @@ echo "GUI 및 사용자 서비스 최적화 완료"
 #---------------------------------------
 # 20. GUI 설정 (GNOME)
 #---------------------------------------
-echo "[20/22] GUI 외관 설정..."
+echo "[20/24] GUI 외관 설정..."
 
 # 화면 꺼짐 방지
 sudo -u $REAL_USER gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
@@ -581,7 +581,7 @@ echo ""
 #---------------------------------------
 # 21. Patchright 브라우저 설치
 #---------------------------------------
-echo "[21/22] Patchright 브라우저 설치..."
+echo "[21/24] Patchright 브라우저 설치..."
 PATCHRIGHT_CACHE="$REAL_HOME/.cache/ms-playwright"
 
 if [ ! -d "$PATCHRIGHT_CACHE" ] || [ -z "$(ls -A $PATCHRIGHT_CACHE 2>/dev/null)" ]; then
@@ -616,7 +616,7 @@ fi
 #---------------------------------------
 # 22. vpn_coupang_v1 에이전트 설치
 #---------------------------------------
-echo "[22/22] vpn_coupang_v1 에이전트 설치..."
+echo "[22/24] vpn_coupang_v1 에이전트 설치..."
 AGENT_DIR="$REAL_HOME/vpn_coupang_v1"
 
 if [ -d "$AGENT_DIR" ]; then
@@ -642,6 +642,66 @@ fi
 if [ -d "$PATCHRIGHT_CACHE" ]; then
     echo "  - Patchright 브라우저 확인됨"
 fi
+
+#---------------------------------------
+# 23. Health Agent 설치 (헬스체크 & 네트워크 복구)
+#---------------------------------------
+echo "[23/24] Health Agent 설치..."
+HEALTH_AGENT_DIR="/opt/health-agent"
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/health-agent"
+
+if [ -d "$SCRIPT_SOURCE_DIR" ]; then
+    # 디렉토리 생성
+    mkdir -p "$HEALTH_AGENT_DIR"
+    mkdir -p "$HEALTH_AGENT_DIR/data"
+    mkdir -p /var/log/health-agent
+
+    # 스크립트 복사
+    cp "$SCRIPT_SOURCE_DIR/health-agent.sh" "$HEALTH_AGENT_DIR/"
+    cp "$SCRIPT_SOURCE_DIR/network-recovery.sh" "$HEALTH_AGENT_DIR/"
+    cp "$SCRIPT_SOURCE_DIR/health-status" "$HEALTH_AGENT_DIR/"
+
+    # 설정 파일 (기존 설정 보존)
+    if [ ! -f "$HEALTH_AGENT_DIR/config.env" ]; then
+        cp "$SCRIPT_SOURCE_DIR/config.env" "$HEALTH_AGENT_DIR/"
+    fi
+
+    # 실행 권한
+    chmod +x "$HEALTH_AGENT_DIR/health-agent.sh"
+    chmod +x "$HEALTH_AGENT_DIR/network-recovery.sh"
+    chmod +x "$HEALTH_AGENT_DIR/health-status"
+
+    # CLI 심볼릭 링크
+    ln -sf "$HEALTH_AGENT_DIR/health-status" /usr/local/bin/health-status
+
+    # systemd 서비스 설치
+    cp "$SCRIPT_SOURCE_DIR/health-agent.service" /etc/systemd/system/
+    cp "$SCRIPT_SOURCE_DIR/health-agent.timer" /etc/systemd/system/
+    cp "$SCRIPT_SOURCE_DIR/network-recovery.service" /etc/systemd/system/
+    cp "$SCRIPT_SOURCE_DIR/network-recovery.timer" /etc/systemd/system/
+
+    systemctl daemon-reload
+    systemctl enable --now health-agent.timer
+    systemctl enable --now network-recovery.timer
+
+    # 최초 실행
+    "$HEALTH_AGENT_DIR/health-agent.sh" 2>/dev/null || true
+
+    echo "Health Agent 설치 완료"
+    echo "  - 헬스체크: 1분마다 실행"
+    echo "  - 네트워크 복구: 5분마다 실행"
+    echo "  - CLI: health-status"
+else
+    echo "Health Agent 소스 없음, 스킵"
+fi
+
+#---------------------------------------
+# 24. 최종 확인
+#---------------------------------------
+echo "[24/24] 최종 확인..."
+
+# 모든 서비스 상태 확인
+echo "  서비스 상태 확인 중..."
 
 #===============================================================================
 # 완료 리포트
@@ -682,6 +742,11 @@ echo "[ 에이전트 현황 ]"
 echo "  - 에이전트 경로: $AGENT_DIR"
 echo "  - node_modules: $(test -d $AGENT_DIR/node_modules && echo '설치됨' || echo '미설치')"
 echo "  - Patchright: $(test -d $PATCHRIGHT_CACHE && echo '설치됨' || echo '미설치')"
+echo ""
+echo "[ 헬스체크 ]"
+echo "  - Health Agent: $(systemctl is-active health-agent.timer 2>/dev/null || echo '미설치')"
+echo "  - Network Recovery: $(systemctl is-active network-recovery.timer 2>/dev/null || echo '미설치')"
+echo "  - CLI 명령어: health-status"
 echo ""
 echo "[ 다음 단계 ]"
 echo "  1. 재부팅: sudo reboot"

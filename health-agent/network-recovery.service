@@ -1,0 +1,13 @@
+[Unit]
+Description=Network Recovery Service
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/health-agent/network-recovery.sh
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
