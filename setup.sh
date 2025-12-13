@@ -3,20 +3,41 @@
 # Ubuntu 22.04 자동화 서버 초기 설정 스크립트 (통합 버전)
 # - 쿠팡 자동화 에이전트용 최적화 환경 구성
 # - WireGuard VPN + Playwright 브라우저 자동화 지원
+# - vpn_coupang_v1 에이전트 자동 설치 포함
 # - Ubuntu 24는 자동 로그아웃 이슈로 22.04 권장
 #
-# 사용법: sudo ./setup.sh
+# 사용법: ./setup.sh (sudo 자동 처리)
 # GitHub: https://github.com/service0427/setup
 #===============================================================================
 
 set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.1.0"
+SCRIPT_VERSION="1.2.0"
 
 # 실제 사용자 확인 (sudo로 실행해도 원래 사용자 찾기)
-REAL_USER=${SUDO_USER:-$USER}
+if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+    REAL_USER=$SUDO_USER
+else
+    REAL_USER=$USER
+fi
 REAL_HOME=$(eval echo ~$REAL_USER)
+
+#===============================================================================
+# sudo 타임아웃 설정 (재부팅 전까지 비밀번호 한 번만 입력)
+#===============================================================================
+SUDO_TIMEOUT_FILE="/etc/sudoers.d/timeout-noexpire"
+if [ ! -f "$SUDO_TIMEOUT_FILE" ]; then
+    echo "sudo 타임아웃 설정 중..."
+    # 먼저 한 번 sudo 권한 확인
+    sudo -v
+    # timestamp_timeout=-1: 재부팅 전까지 sudo 인증 유지
+    echo 'Defaults timestamp_timeout=-1' | sudo tee "$SUDO_TIMEOUT_FILE" > /dev/null
+    sudo chmod 440 "$SUDO_TIMEOUT_FILE"
+    echo "sudo 타임아웃 설정 완료 (재부팅 전까지 유효)"
+else
+    sudo -v
+fi
 
 # 시스템 정보
 TOTAL_RAM_GB=$(free -g | awk '/^Mem:/{print $2}')
@@ -37,7 +58,7 @@ echo ""
 #---------------------------------------
 # 1. 타임존 설정 (KST)
 #---------------------------------------
-echo "[1/20] 타임존 설정 (Asia/Seoul)..."
+echo "[1/22] 타임존 설정 (Asia/Seoul)..."
 CURRENT_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null)
 if [ "$CURRENT_TZ" != "Asia/Seoul" ]; then
     sudo timedatectl set-timezone Asia/Seoul
@@ -49,7 +70,7 @@ fi
 #---------------------------------------
 # 2. 기본 패키지 설치
 #---------------------------------------
-echo "[2/20] 기본 패키지 설치..."
+echo "[2/22] 기본 패키지 설치..."
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y \
     curl git openssh-server htop wget gnupg \
@@ -60,7 +81,7 @@ sudo apt install -y \
 #---------------------------------------
 # 3. Node.js 22.x 설치
 #---------------------------------------
-echo "[3/20] Node.js 22.x 설치..."
+echo "[3/22] Node.js 22.x 설치..."
 if ! command -v node &> /dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     sudo apt-get install -y nodejs
@@ -80,7 +101,7 @@ fi
 #---------------------------------------
 # 4. Python 3.11+ 설치 (deadsnakes PPA)
 #---------------------------------------
-echo "[4/20] Python 3.11 설치..."
+echo "[4/22] Python 3.11 설치..."
 if ! command -v python3.11 &> /dev/null; then
     sudo add-apt-repository -y ppa:deadsnakes/ppa
     sudo apt update
@@ -98,7 +119,7 @@ fi
 #---------------------------------------
 # 5. Google Chrome 설치
 #---------------------------------------
-echo "[5/20] Google Chrome 설치..."
+echo "[5/22] Google Chrome 설치..."
 if ! command -v google-chrome &> /dev/null; then
     sudo install -d -m 0755 /etc/apt/keyrings
     wget -qO- https://dl.google.com/linux/linux_signing_key.pub | sudo tee /etc/apt/keyrings/google.asc >/dev/null
@@ -115,7 +136,7 @@ fi
 #---------------------------------------
 # 6. Playwright/Patchright 브라우저 의존성
 #---------------------------------------
-echo "[6/20] 브라우저 자동화 의존성 설치..."
+echo "[6/22] 브라우저 자동화 의존성 설치..."
 sudo apt install -y \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
@@ -128,7 +149,7 @@ echo "브라우저 의존성 설치 완료"
 #---------------------------------------
 # 7. WireGuard VPN 설치
 #---------------------------------------
-echo "[7/20] WireGuard VPN 설치..."
+echo "[7/22] WireGuard VPN 설치..."
 if ! command -v wg &> /dev/null; then
     sudo apt install -y wireguard wireguard-tools
 
@@ -148,7 +169,7 @@ fi
 #---------------------------------------
 # 8. AnyDesk 설치
 #---------------------------------------
-echo "[8/20] AnyDesk 설치..."
+echo "[8/22] AnyDesk 설치..."
 if ! command -v anydesk &> /dev/null; then
     curl -fsSL https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo tee /etc/apt/keyrings/keys.anydesk.com.asc >/dev/null
     sudo chmod a+r /etc/apt/keyrings/keys.anydesk.com.asc
@@ -165,7 +186,7 @@ fi
 #---------------------------------------
 # 9. 한글 입력기 설치 (fcitx5)
 #---------------------------------------
-echo "[9/20] 한글 입력기 설치..."
+echo "[9/22] 한글 입력기 설치..."
 if ! dpkg -l | grep -q fcitx5-hangul; then
     sudo apt install -y fcitx5 fcitx5-hangul
     sudo -u $REAL_USER im-config -n fcitx5
@@ -177,7 +198,7 @@ fi
 #---------------------------------------
 # 10. Snap 패키지 완전 제거
 #---------------------------------------
-echo "[10/20] Snap 패키지 제거..."
+echo "[10/22] Snap 패키지 제거..."
 if command -v snap &> /dev/null; then
     SNAP_COUNT=$(snap list 2>/dev/null | wc -l)
     if [ "$SNAP_COUNT" -gt 1 ]; then
@@ -218,7 +239,7 @@ fi
 #---------------------------------------
 # 11. CUPS (프린터) 서비스 비활성화
 #---------------------------------------
-echo "[11/20] CUPS 프린터 서비스 비활성화..."
+echo "[11/22] CUPS 프린터 서비스 비활성화..."
 if systemctl is-active --quiet cups.service 2>/dev/null; then
     sudo systemctl stop cups.service cups-browsed.service 2>/dev/null || true
     sudo systemctl disable cups.service cups-browsed.service 2>/dev/null || true
@@ -230,7 +251,7 @@ fi
 #---------------------------------------
 # 12. 자동 업데이트 비활성화
 #---------------------------------------
-echo "[12/20] 자동 업데이트 비활성화..."
+echo "[12/22] 자동 업데이트 비활성화..."
 sudo systemctl disable --now unattended-upgrades.service 2>/dev/null || true
 sudo systemctl disable --now apt-daily.service apt-daily.timer 2>/dev/null || true
 sudo systemctl disable --now apt-daily-upgrade.service apt-daily-upgrade.timer 2>/dev/null || true
@@ -243,7 +264,7 @@ echo "자동 업데이트 비활성화 완료"
 #---------------------------------------
 # 13. CPU Governor → Performance
 #---------------------------------------
-echo "[13/20] CPU Governor 설정..."
+echo "[13/22] CPU Governor 설정..."
 CURRENT_GOV=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
 if [ "$CURRENT_GOV" != "performance" ]; then
     # cpufrequtils 설치
@@ -268,7 +289,7 @@ fi
 #---------------------------------------
 # 14. 시스템 커널 파라미터 최적화
 #---------------------------------------
-echo "[14/20] 시스템 커널 파라미터 최적화..."
+echo "[14/22] 시스템 커널 파라미터 최적화..."
 
 # swappiness 낮추기 (RAM 우선 사용)
 if ! grep -q "vm.swappiness=10" /etc/sysctl.conf; then
@@ -315,7 +336,7 @@ sudo sysctl -p 2>/dev/null || true
 #---------------------------------------
 # 15. 스왑 파일 설정 (RAM 기반 동적 크기)
 #---------------------------------------
-echo "[15/20] 스왑 파일 설정..."
+echo "[15/22] 스왑 파일 설정..."
 
 # RAM 크기에 따른 스왑 크기 결정
 if [ "$TOTAL_RAM_GB" -le 8 ]; then
@@ -350,7 +371,7 @@ fi
 #---------------------------------------
 # 16. 자동 로그인 설정
 #---------------------------------------
-echo "[16/20] 자동 로그인 설정..."
+echo "[16/22] 자동 로그인 설정..."
 GDM_CONF="/etc/gdm3/custom.conf"
 if [ -f "$GDM_CONF" ]; then
     if ! grep -q "AutomaticLoginEnable=true" "$GDM_CONF" 2>/dev/null; then
@@ -369,17 +390,44 @@ else
 fi
 
 #---------------------------------------
-# 17. VPN 모드용 sudoers 설정
+# 17. sudoers 설정 (자주 사용하는 명령어 NOPASSWD)
 #---------------------------------------
-echo "[17/20] VPN 모드용 sudoers 설정..."
-SUDOERS_FILE="/etc/sudoers.d/${REAL_USER}-vpn-nopasswd"
+echo "[17/22] sudoers 설정..."
+SUDOERS_FILE="/etc/sudoers.d/${REAL_USER}-automation"
 if [ ! -f "$SUDOERS_FILE" ]; then
-    echo "${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/node, /usr/sbin/ip, /sbin/ip, /usr/bin/wg, /usr/bin/wg-quick" | \
-        sudo tee "$SUDOERS_FILE" > /dev/null
+    cat << EOF | sudo tee "$SUDOERS_FILE" > /dev/null
+# 자동화 에이전트용 sudoers 설정
+# Node.js & npm
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/node, /usr/bin/npm, /usr/bin/npx
+
+# 네트워크 & VPN
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/sbin/ip, /sbin/ip
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/wg, /usr/bin/wg-quick
+
+# 시스템 관리
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/sbin/reboot, /usr/sbin/shutdown
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/tee
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/kill, /usr/bin/pkill
+
+# 파일 권한
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/chmod, /usr/bin/chown
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/rm
+
+# 모듈 & 커널
+${REAL_USER} ALL=(ALL) NOPASSWD: /usr/sbin/modprobe
+EOF
     sudo chmod 440 "$SUDOERS_FILE"
-    echo "VPN sudoers 설정 완료"
+    # sudoers 문법 검사
+    if sudo visudo -c -f "$SUDOERS_FILE" 2>/dev/null; then
+        echo "sudoers 설정 완료"
+    else
+        echo "sudoers 문법 오류, 파일 삭제"
+        sudo rm -f "$SUDOERS_FILE"
+    fi
 else
-    echo "VPN sudoers 이미 설정됨"
+    echo "sudoers 이미 설정됨"
 fi
 
 #===============================================================================
@@ -393,7 +441,7 @@ echo ""
 #---------------------------------------
 # 18. GNOME 검색 & Tracker 비활성화
 #---------------------------------------
-echo "[18/20] GNOME 검색 & Tracker 비활성화..."
+echo "[18/22] GNOME 검색 & Tracker 비활성화..."
 
 # GNOME 검색 프로바이더 비활성화
 sudo -u $REAL_USER gsettings set org.gnome.desktop.search-providers disable-external true 2>/dev/null || true
@@ -410,7 +458,7 @@ echo "GNOME 검색 & Tracker 비활성화 완료"
 #---------------------------------------
 # 19. 불필요 사용자 서비스 비활성화 + GUI 설정
 #---------------------------------------
-echo "[19/20] GUI 및 사용자 서비스 최적화..."
+echo "[19/22] GUI 및 사용자 서비스 최적화..."
 
 # Evolution 데이터 서버
 sudo -u $REAL_USER systemctl --user stop evolution-addressbook-factory.service 2>/dev/null || true
@@ -452,7 +500,7 @@ echo "GUI 및 사용자 서비스 최적화 완료"
 #---------------------------------------
 # 20. GUI 설정 (GNOME)
 #---------------------------------------
-echo "[20/20] GUI 외관 설정..."
+echo "[20/22] GUI 외관 설정..."
 
 # 화면 꺼짐 방지
 sudo -u $REAL_USER gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
@@ -482,6 +530,79 @@ sudo -u $REAL_USER gsettings set org.gnome.shell.extensions.ding show-volumes fa
 echo "GUI 외관 설정 완료"
 
 #===============================================================================
+# PART 3: 에이전트 설치
+#===============================================================================
+
+echo ""
+echo "[ PART 3: 에이전트 설치 ]"
+echo ""
+
+#---------------------------------------
+# 21. Patchright 브라우저 설치
+#---------------------------------------
+echo "[21/22] Patchright 브라우저 설치..."
+PATCHRIGHT_CACHE="$REAL_HOME/.cache/ms-playwright"
+
+if [ ! -d "$PATCHRIGHT_CACHE" ] || [ -z "$(ls -A $PATCHRIGHT_CACHE 2>/dev/null)" ]; then
+    # 임시 디렉토리에서 patchright 설치
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+
+    # package.json 생성
+    cat << 'PKGJSON' > package.json
+{
+  "name": "patchright-installer",
+  "private": true,
+  "dependencies": {
+    "patchright": "^1.56.1"
+  }
+}
+PKGJSON
+
+    # 사용자 권한으로 설치 (브라우저 바이너리가 사용자 홈에 설치됨)
+    sudo -u $REAL_USER npm install
+    sudo -u $REAL_USER npx patchright install chromium
+
+    # 정리
+    cd /
+    rm -rf "$TEMP_DIR"
+
+    echo "Patchright 브라우저 설치 완료"
+else
+    echo "Patchright 브라우저 이미 설치됨"
+fi
+
+#---------------------------------------
+# 22. vpn_coupang_v1 에이전트 설치
+#---------------------------------------
+echo "[22/22] vpn_coupang_v1 에이전트 설치..."
+AGENT_DIR="$REAL_HOME/vpn_coupang_v1"
+
+if [ -d "$AGENT_DIR" ]; then
+    echo "기존 에이전트 디렉토리 발견, 업데이트 중..."
+    cd "$AGENT_DIR"
+    sudo -u $REAL_USER git pull origin main 2>/dev/null || true
+    sudo -u $REAL_USER npm install
+    echo "에이전트 업데이트 완료"
+else
+    echo "에이전트 클론 중..."
+    sudo -u $REAL_USER git clone https://github.com/service0427/vpn_coupang_v1.git "$AGENT_DIR"
+    cd "$AGENT_DIR"
+    sudo -u $REAL_USER npm install
+    echo "에이전트 설치 완료"
+fi
+
+# node_modules 확인
+if [ -d "$AGENT_DIR/node_modules" ]; then
+    echo "  - node_modules 확인됨"
+fi
+
+# Patchright 브라우저 확인
+if [ -d "$PATCHRIGHT_CACHE" ]; then
+    echo "  - Patchright 브라우저 확인됨"
+fi
+
+#===============================================================================
 # 완료 리포트
 #===============================================================================
 echo ""
@@ -509,11 +630,16 @@ echo "  - CPU Governor: $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_gover
 echo "  - swappiness: $(cat /proc/sys/vm/swappiness)"
 echo "  - vfs_cache_pressure: $(cat /proc/sys/vm/vfs_cache_pressure)"
 echo "  - 스왑 파일: $(swapon --show 2>/dev/null | grep swapfile | awk '{print $3}' || echo 'N/A')"
-echo "  - VPN sudoers: $(test -f /etc/sudoers.d/${REAL_USER}-vpn-nopasswd && echo '설정됨' || echo '미설정')"
+echo "  - sudoers: $(test -f /etc/sudoers.d/${REAL_USER}-automation && echo '설정됨' || echo '미설정')"
+echo ""
+echo "[ 에이전트 현황 ]"
+echo "  - 에이전트 경로: $AGENT_DIR"
+echo "  - node_modules: $(test -d $AGENT_DIR/node_modules && echo '설치됨' || echo '미설치')"
+echo "  - Patchright: $(test -d $PATCHRIGHT_CACHE && echo '설치됨' || echo '미설치')"
 echo ""
 echo "[ 다음 단계 ]"
 echo "  1. 재부팅: sudo reboot"
-echo "  2. vpn_coupang_v1 설치:"
-echo "     git clone https://github.com/service0427/vpn_coupang_v1.git"
-echo "     cd vpn_coupang_v1 && npm install"
+echo "  2. 에이전트 실행:"
+echo "     cd ~/vpn_coupang_v1"
+echo "     node index-vpn-multi.js --threads 4 --status"
 echo ""
