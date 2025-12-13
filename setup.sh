@@ -167,9 +167,14 @@ else
 fi
 
 #---------------------------------------
-# 8. AnyDesk 설치
+# 8. AnyDesk 설치 및 무인 접속 설정
 #---------------------------------------
 echo "[8/22] AnyDesk 설치..."
+
+# AnyDesk 설정값
+ANYDESK_PASSWORD="Tech1324!"
+ANYDESK_LICENSE="WNIX6Z9J66HVIU9"
+
 if ! command -v anydesk &> /dev/null; then
     curl -fsSL https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo tee /etc/apt/keyrings/keys.anydesk.com.asc >/dev/null
     sudo chmod a+r /etc/apt/keyrings/keys.anydesk.com.asc
@@ -178,9 +183,45 @@ if ! command -v anydesk &> /dev/null; then
     sudo apt update
     sudo apt install -y anydesk
     sudo systemctl enable --now anydesk
+
+    # 서비스가 완전히 시작될 때까지 대기
+    sleep 3
+
     echo "AnyDesk 설치 완료"
+    ANYDESK_INSTALLED=1
 else
     echo "AnyDesk 이미 설치됨"
+    ANYDESK_INSTALLED=0
+fi
+
+# AnyDesk ID가 생성될 때까지 대기 (최초 설치 시)
+if [ "$ANYDESK_INSTALLED" -eq 1 ]; then
+    echo "  AnyDesk ID 생성 대기 중..."
+    for i in {1..30}; do
+        ANYDESK_ID=$(anydesk --get-id 2>/dev/null)
+        if [ -n "$ANYDESK_ID" ] && [ "$ANYDESK_ID" != "0" ]; then
+            break
+        fi
+        sleep 1
+    done
+fi
+
+# 라이센스 등록 (미등록 시)
+if ! grep -q "ad.license.key" /etc/anydesk/system.conf 2>/dev/null; then
+    echo "  라이센스 등록 중..."
+    echo "$ANYDESK_LICENSE" | sudo anydesk --register-license 2>/dev/null && \
+        echo "  라이센스 등록 완료" || echo "  라이센스 등록 실패 (수동 등록 필요)"
+fi
+
+# 무인 접속 비밀번호 설정
+echo "  무인 접속 비밀번호 설정 중..."
+echo "$ANYDESK_PASSWORD" | sudo anydesk --set-password 2>/dev/null && \
+    echo "  비밀번호 설정 완료" || echo "  비밀번호 설정 실패 (수동 설정 필요)"
+
+# AnyDesk ID 출력
+ANYDESK_ID=$(anydesk --get-id 2>/dev/null)
+if [ -n "$ANYDESK_ID" ]; then
+    echo "  AnyDesk ID: $ANYDESK_ID"
 fi
 
 #---------------------------------------
@@ -615,6 +656,11 @@ echo "  - 호스트명: $(hostname)"
 echo "  - RAM: ${TOTAL_RAM_GB}GB | CPU: ${CPU_CORES} cores"
 echo "  - 타임존: $(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone)"
 echo "  - 자동 로그인: $(grep -q 'AutomaticLoginEnable=true' /etc/gdm3/custom.conf 2>/dev/null && echo '활성화' || echo '비활성화')"
+echo ""
+echo "[ 원격 접속 정보 ]"
+echo "  - IP: $(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)"
+echo "  - AnyDesk ID: $(anydesk --get-id 2>/dev/null || echo 'N/A')"
+echo "  - AnyDesk PW: $ANYDESK_PASSWORD"
 echo ""
 echo "[ 설치 현황 ]"
 echo "  - Node.js: $(node -v 2>/dev/null || echo 'N/A')"
