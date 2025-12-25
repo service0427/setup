@@ -10,10 +10,17 @@
 # GitHub: https://github.com/service0427/setup
 #===============================================================================
 
-set -e  # 에러 발생 시 중단
+# set -e 제거 - 일부 명령 실패 시에도 계속 진행하도록 함
+# set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.3.0"
+SCRIPT_VERSION="1.3.1"
+
+# 변수 초기화
+ANYDESK_INSTALLED=0
+
+# 스크립트 위치 저장 (나중에 health-agent 경로 찾기용)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 실제 사용자 확인 (sudo로 실행해도 원래 사용자 찾기)
 if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
@@ -39,8 +46,8 @@ else
     sudo -v
 fi
 
-# 시스템 정보
-TOTAL_RAM_GB=$(free -g | awk '/^Mem:/{print $2}')
+# 시스템 정보 (LANG=C로 영문 출력 강제)
+TOTAL_RAM_GB=$(LANG=C free -g | awk '/^Mem:/{print $2}')
 CPU_CORES=$(nproc)
 
 echo "========================================"
@@ -392,9 +399,11 @@ fi
 
 if [ ! -f /swapfile ]; then
     echo "${SWAP_SIZE} 스왑 파일 생성 중... (시간이 걸릴 수 있음)"
-    # dd 사용 (btrfs/ZFS 호환)
-    sudo dd if=/dev/zero of=/swapfile bs=1G count=${SWAP_SIZE%G} status=progress 2>/dev/null || \
-    sudo fallocate -l $SWAP_SIZE /swapfile
+    # fallocate 먼저 시도 (빠름), 실패시 dd 사용 (btrfs/ZFS 호환)
+    if ! sudo fallocate -l $SWAP_SIZE /swapfile 2>/dev/null; then
+        echo "fallocate 실패, dd로 재시도..."
+        sudo dd if=/dev/zero of=/swapfile bs=1G count=${SWAP_SIZE%G} status=progress
+    fi
     sudo chmod 600 /swapfile
     sudo mkswap /swapfile
     sudo swapon /swapfile
@@ -410,11 +419,23 @@ else
 fi
 
 #---------------------------------------
-# 16. 자동 로그인 설정
+# 16. 자동 로그인 + Wayland 비활성화 (AnyDesk 호환)
 #---------------------------------------
-echo "[16/24] 자동 로그인 설정..."
+echo "[16/24] 자동 로그인 및 X11 설정..."
 GDM_CONF="/etc/gdm3/custom.conf"
 if [ -f "$GDM_CONF" ]; then
+    # Wayland 비활성화 (AnyDesk는 X11 필요)
+    if grep -q "#WaylandEnable=false" "$GDM_CONF"; then
+        sudo sed -i 's/#WaylandEnable=false/WaylandEnable=false/' "$GDM_CONF"
+        echo "Wayland 비활성화 완료 (X11 사용)"
+    elif ! grep -q "WaylandEnable=false" "$GDM_CONF"; then
+        sudo sed -i '/^\[daemon\]/a WaylandEnable=false' "$GDM_CONF"
+        echo "Wayland 비활성화 추가 완료"
+    else
+        echo "Wayland 이미 비활성화됨"
+    fi
+
+    # 자동 로그인 설정
     if ! grep -q "AutomaticLoginEnable=true" "$GDM_CONF" 2>/dev/null; then
         # [daemon] 섹션 확인 및 설정 추가
         if grep -q "^\[daemon\]" "$GDM_CONF"; then
@@ -619,6 +640,9 @@ fi
 echo "[22/24] vpn_coupang_v1 에이전트 설치..."
 AGENT_DIR="$REAL_HOME/vpn_coupang_v1"
 
+# GitHub 토큰 (private 저장소 접근용) - 실제 운영 시 환경변수로 전달 권장
+GITHUB_TOKEN="${GITHUB_TOKEN:-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}"
+
 if [ -d "$AGENT_DIR" ]; then
     echo "기존 에이전트 디렉토리 발견, 업데이트 중..."
     cd "$AGENT_DIR"
@@ -627,6 +651,7 @@ if [ -d "$AGENT_DIR" ]; then
     echo "에이전트 업데이트 완료"
 else
     echo "에이전트 클론 중..."
+    sudo -u $REAL_USER git clone https://${GITHUB_TOKEN}@github.com/service0427/vpn_coupang_v1.git "$AGENT_DIR" 2>/dev/null || \
     sudo -u $REAL_USER git clone https://github.com/service0427/vpn_coupang_v1.git "$AGENT_DIR"
     cd "$AGENT_DIR"
     sudo -u $REAL_USER npm install
@@ -648,7 +673,7 @@ fi
 #---------------------------------------
 echo "[23/24] Health Agent 설치..."
 HEALTH_AGENT_DIR="/opt/health-agent"
-SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/health-agent"
+SCRIPT_SOURCE_DIR="$SCRIPT_DIR/health-agent"
 
 if [ -d "$SCRIPT_SOURCE_DIR" ]; then
     # 디렉토리 생성
