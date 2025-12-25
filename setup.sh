@@ -14,7 +14,7 @@
 # set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.3.5"
+SCRIPT_VERSION="1.3.6"
 
 # 변수 초기화
 ANYDESK_INSTALLED=0
@@ -137,6 +137,15 @@ if ! command -v google-chrome &> /dev/null; then
     echo "Chrome 설치 완료: $(google-chrome --version)"
 else
     echo "Chrome 이미 설치됨: $(google-chrome --version)"
+fi
+
+# Chrome 키링 팝업 비활성화 (--password-store=basic 추가)
+CHROME_DESKTOP="/usr/share/applications/google-chrome.desktop"
+if [ -f "$CHROME_DESKTOP" ]; then
+    if ! grep -q "password-store=basic" "$CHROME_DESKTOP"; then
+        sudo sed -i 's|Exec=/usr/bin/google-chrome-stable|Exec=/usr/bin/google-chrome-stable --password-store=basic|g' "$CHROME_DESKTOP"
+        echo "Chrome 키링 비활성화 완료"
+    fi
 fi
 
 #---------------------------------------
