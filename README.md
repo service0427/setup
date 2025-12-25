@@ -4,22 +4,41 @@
 
 ## 개요
 
-- **대상 OS**: Ubuntu 22.04 LTS (Jammy Jellyfish)
+- **대상 OS**: Ubuntu 22.04 LTS (Jammy Jellyfish) Desktop
 - **목적**: 쿠팡 자동화 에이전트 + WireGuard VPN 환경 구성
 - **특징**:
   - 멱등성(Idempotent) - 여러 번 실행해도 안전
   - vpn_coupang_v1 자동 설치 포함
-  - AnyDesk 무인 접속 자동 설정
+  - AnyDesk 무인 접속 자동 설정 (X11 호환)
   - **헬스체크 & 네트워크 자동 복구 시스템 포함**
+  - **24시간 무중단 운영 최적화** (화면보호기/절전 비활성화)
   - sudo 비밀번호 한 번만 입력 (재부팅 전까지 유효)
+  - 한글 로케일 환경 완벽 지원
 
 > **Note**: Ubuntu 24.04는 자동 로그아웃 이슈로 22.04 권장
 
 ## 한 줄 설치
 
+### 기본 설치 (public 저장소)
+```bash
+curl -fsSL https://raw.githubusercontent.com/service0427/setup/main/setup.sh | bash
+```
+
+### Git Clone 방식
 ```bash
 git clone https://github.com/service0427/setup.git && cd setup && ./setup.sh
 ```
+
+### Private 저장소 (토큰 사용)
+```bash
+GITHUB_TOKEN="your_token" git clone https://$GITHUB_TOKEN@github.com/service0427/setup.git && cd setup && ./setup.sh
+```
+
+## 요구사항
+
+- Ubuntu 22.04 LTS Desktop (신규 설치 권장)
+- 인터넷 연결
+- sudo 권한
 
 ## 설치 항목
 
@@ -32,6 +51,27 @@ git clone https://github.com/service0427/setup.git && cd setup && ./setup.sh
 | WireGuard | Latest | VPN 터널링 |
 | Patchright | Latest | 브라우저 자동화 (Playwright fork) |
 | AnyDesk | Latest | 원격 데스크톱 (무인 접속 설정) |
+
+### 시스템 최적화
+| 항목 | 설정 | 효과 |
+|------|------|------|
+| CPU Governor | performance | CPU 최대 성능 |
+| swappiness | 10 | RAM 우선 사용 |
+| vfs_cache_pressure | 50 | 파일 캐시 유지 |
+| 파일 디스크립터 | 65536 | Chrome 다중 인스턴스 |
+| Wayland | 비활성화 | AnyDesk X11 호환 |
+| 화면보호기/절전 | 비활성화 | 24시간 운영 |
+
+### 비활성화 서비스
+- `snap` - 완전 제거
+- `cups` - 프린터 서비스
+- `avahi-daemon` - mDNS 네트워크 검색
+- `ModemManager` - 모뎀 관리
+- `kerneloops` - 커널 충돌 리포트
+- `packagekit` - GUI 패키지 관리
+- `ubuntu-advantage` - Ubuntu Pro
+- `plymouth-quit-wait` - 부팅 스플래시 (~22초 절약)
+- `NetworkManager-wait-online` - 네트워크 대기 (~5초 절약)
 
 ### 헬스체크 시스템 (Health Agent)
 ```
@@ -98,7 +138,7 @@ node index-vpn-multi.js --threads 4 --status
 ## 스크립트 구조
 
 ```
-setup.sh (v1.3.0)
+setup.sh (v1.3.4)
 ├── sudo 타임아웃 설정 (재부팅 전까지 유효)
 │
 ├── PART 1: 시스템 설정 (root 권한)
@@ -111,58 +151,60 @@ setup.sh (v1.3.0)
 │   ├── [7] WireGuard VPN 설치
 │   ├── [8] AnyDesk 설치 + 무인접속 설정
 │   ├── [9] 한글 입력기 (fcitx5)
-│   ├── [10] Snap 제거
-│   ├── [11] CUPS 비활성화
+│   ├── [10] Snap 완전 제거
+│   ├── [11] 불필요 서비스 비활성화 (CUPS, Avahi, ModemManager 등)
 │   ├── [12] 자동 업데이트 비활성화
-│   ├── [13] CPU Governor 설정
+│   ├── [13] CPU Governor → performance
 │   ├── [14] 커널 파라미터 최적화
-│   ├── [15] 스왑 파일 설정
-│   ├── [16] 자동 로그인 설정
+│   ├── [15] 스왑 파일 설정 (RAM 기반 동적 크기)
+│   ├── [16] 자동 로그인 + Wayland 비활성화
 │   └── [17] sudoers 설정
 │
 ├── PART 2: 사용자 설정 (user 권한)
 │   ├── [18] GNOME Tracker 비활성화
-│   ├── [19] 사용자 서비스 최적화
-│   └── [20] GUI 외관 설정
+│   ├── [19] 사용자 서비스 최적화 + 24시간 운영 설정
+│   └── [20] GUI 외관 설정 (다크모드, autostart)
 │
 └── PART 3: 에이전트 설치
     ├── [21] Patchright 브라우저 설치
     ├── [22] vpn_coupang_v1 클론 & npm install
     ├── [23] Health Agent 설치
-    └── [24] 최종 확인
+    └── [24] 최종 확인 및 리포트
 ```
 
 ## 완료 리포트 예시
 
 ```
 ========================================
-  셋업 완료! v1.3.0
+  셋업 완료! v1.3.4
 ========================================
 
 [ 시스템 정보 ]
-  - 호스트명: U22-01
-  - RAM: 32GB | CPU: 16 cores
+  - 호스트명: K01
+  - RAM: 31GB | CPU: 24 cores
   - 타임존: Asia/Seoul
   - 자동 로그인: 활성화
 
 [ 원격 접속 정보 ]
-  - IP: 121.173.150.131
-  - AnyDesk ID: 1426417165
+  - IP: 210.217.47.249
+  - AnyDesk ID: 1658042321
   - AnyDesk PW: Tech1324!
 
 [ 설치 현황 ]
-  - Node.js: v22.x.x
-  - Python: Python 3.11.x
-  - Chrome: 131.x.x
-  - WireGuard: wireguard-tools v1.x
-  - AnyDesk: 설치됨
+  - Node.js: v22.21.0
+  - Python: Python 3.11.14
+  - Chrome: 143.0.7499.169
+  - WireGuard: wireguard-tools v1.0.20210914
+  - AnyDesk: 7.1.2
 
 [ 최적화 현황 ]
   - Snap: 제거됨
   - CUPS: 비활성화
   - CPU Governor: performance
   - swappiness: 10
+  - vfs_cache_pressure: 50
   - 스왑 파일: 32G
+  - sudoers: 설정됨
 
 [ 에이전트 현황 ]
   - 에이전트 경로: /home/tech/vpn_coupang_v1
@@ -173,6 +215,25 @@ setup.sh (v1.3.0)
   - Health Agent: active
   - Network Recovery: active
   - CLI 명령어: health-status
+```
+
+## health-status 출력 예시
+
+```
+===== K01 =====
+
+  IP:       210.217.47.249
+  AnyDesk:  1658042321
+  Uptime:   up 18 minutes
+
+  CPU:      5%     Load: 0.18 0.40 0.27
+  Memory:   6%
+  Disk:     2%
+
+  Network:  OK
+  Agent:    Stopped
+  Chrome:   0 processes
+  VPN NS:   0 namespaces
 ```
 
 ## 중앙 서버 연동 (TODO)
@@ -190,23 +251,26 @@ ENABLE_PUSH="true"
 sudo systemctl restart health-agent.timer
 ```
 
-### 중앙 서버 API 스펙 (예정)
-```
-POST /api/health
-Content-Type: application/json
+## 트러블슈팅
 
-{
-  "hostname": "U22-01",
-  "timestamp": "2024-01-01T00:00:00Z",
-  "basic": { ... },
-  "cpu": { ... },
-  "memory": { ... },
-  "disk": { ... },
-  "network": { ... },
-  "processes": { ... },
-  "services": { ... },
-  "health": { ... }
-}
+### AnyDesk "display_server-not-supported" 오류
+Wayland가 활성화되어 있는 경우 발생. 스크립트가 자동으로 비활성화하지만, 수동 해결:
+```bash
+sudo sed -i 's/#WaylandEnable=false/WaylandEnable=false/' /etc/gdm3/custom.conf
+sudo reboot
+```
+
+### GNOME 설정 앱 크래시
+power-profiles-daemon이 performance 모드일 때 발생 가능:
+```bash
+sudo powerprofilesctl set balanced
+```
+
+### health-status 숫자 오류
+한글 로케일 문제. 최신 버전에서 수정됨:
+```bash
+sudo cp /path/to/setup/health-agent/health-agent.sh /opt/health-agent/
+sudo cp /path/to/setup/health-agent/health-status /opt/health-agent/
 ```
 
 ## 보안 고려사항
@@ -225,7 +289,7 @@ Content-Type: application/json
 
 ```
 setup/
-├── setup.sh                    # 메인 설치 스크립트
+├── setup.sh                    # 메인 설치 스크립트 (v1.3.4)
 ├── README.md                   # 문서
 └── health-agent/               # 헬스체크 시스템
     ├── health-agent.sh         # 상태 수집 스크립트
@@ -238,6 +302,33 @@ setup/
     ├── network-recovery.service
     └── network-recovery.timer  # systemd 타이머 (5분)
 ```
+
+## 변경 이력
+
+### v1.3.4
+- GUI 설정 autostart 방식으로 변경 (DBUS 세션 문제 해결)
+- 다크모드 + Yaru-dark 테마 적용
+
+### v1.3.3
+- 24시간 운영용 절전모드 완전 비활성화
+- sleep-inactive, idle-dim 설정 추가
+
+### v1.3.2
+- 불필요 서비스 추가 비활성화 (avahi, ModemManager, kerneloops, packagekit)
+- 부팅 시간 최적화 (~27초 절약)
+
+### v1.3.1
+- set -e 제거 (일부 명령 실패해도 계속 진행)
+- ANYDESK_INSTALLED 변수 초기화
+- SCRIPT_DIR 변수 추가 (Health Agent 경로 문제 해결)
+- LANG=C 추가 (한글 로케일 문제 해결)
+- Wayland 비활성화 (AnyDesk X11 호환)
+- 스왑 파일 생성 로직 개선
+
+### v1.3.0
+- 초기 버전
+- Health Agent 시스템 추가
+- vpn_coupang_v1 자동 설치
 
 ## 라이선스
 
