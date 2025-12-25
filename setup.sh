@@ -14,7 +14,7 @@
 # set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.3.4"
+SCRIPT_VERSION="1.3.5"
 
 # 변수 초기화
 ANYDESK_INSTALLED=0
@@ -114,9 +114,8 @@ if ! command -v python3.11 &> /dev/null; then
     sudo apt update
     sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
 
-    # python3 기본 버전 변경
-    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-    sudo update-alternatives --set python3 /usr/bin/python3.11 2>/dev/null || true
+    # 주의: python3 기본 버전은 변경하지 않음 (apt_pkg 호환성 유지)
+    # python3.11은 직접 호출로 사용: python3.11 script.py
 
     echo "Python 설치 완료: $(python3.11 --version)"
 else
@@ -737,40 +736,40 @@ SCRIPT_SOURCE_DIR="$SCRIPT_DIR/health-agent"
 
 if [ -d "$SCRIPT_SOURCE_DIR" ]; then
     # 디렉토리 생성
-    mkdir -p "$HEALTH_AGENT_DIR"
-    mkdir -p "$HEALTH_AGENT_DIR/data"
-    mkdir -p /var/log/health-agent
+    sudo mkdir -p "$HEALTH_AGENT_DIR"
+    sudo mkdir -p "$HEALTH_AGENT_DIR/data"
+    sudo mkdir -p /var/log/health-agent
 
     # 스크립트 복사
-    cp "$SCRIPT_SOURCE_DIR/health-agent.sh" "$HEALTH_AGENT_DIR/"
-    cp "$SCRIPT_SOURCE_DIR/network-recovery.sh" "$HEALTH_AGENT_DIR/"
-    cp "$SCRIPT_SOURCE_DIR/health-status" "$HEALTH_AGENT_DIR/"
+    sudo cp "$SCRIPT_SOURCE_DIR/health-agent.sh" "$HEALTH_AGENT_DIR/"
+    sudo cp "$SCRIPT_SOURCE_DIR/network-recovery.sh" "$HEALTH_AGENT_DIR/"
+    sudo cp "$SCRIPT_SOURCE_DIR/health-status" "$HEALTH_AGENT_DIR/"
 
     # 설정 파일 (기존 설정 보존)
     if [ ! -f "$HEALTH_AGENT_DIR/config.env" ]; then
-        cp "$SCRIPT_SOURCE_DIR/config.env" "$HEALTH_AGENT_DIR/"
+        sudo cp "$SCRIPT_SOURCE_DIR/config.env" "$HEALTH_AGENT_DIR/"
     fi
 
     # 실행 권한
-    chmod +x "$HEALTH_AGENT_DIR/health-agent.sh"
-    chmod +x "$HEALTH_AGENT_DIR/network-recovery.sh"
-    chmod +x "$HEALTH_AGENT_DIR/health-status"
+    sudo chmod +x "$HEALTH_AGENT_DIR/health-agent.sh"
+    sudo chmod +x "$HEALTH_AGENT_DIR/network-recovery.sh"
+    sudo chmod +x "$HEALTH_AGENT_DIR/health-status"
 
     # CLI 심볼릭 링크
-    ln -sf "$HEALTH_AGENT_DIR/health-status" /usr/local/bin/health-status
+    sudo ln -sf "$HEALTH_AGENT_DIR/health-status" /usr/local/bin/health-status
 
     # systemd 서비스 설치
-    cp "$SCRIPT_SOURCE_DIR/health-agent.service" /etc/systemd/system/
-    cp "$SCRIPT_SOURCE_DIR/health-agent.timer" /etc/systemd/system/
-    cp "$SCRIPT_SOURCE_DIR/network-recovery.service" /etc/systemd/system/
-    cp "$SCRIPT_SOURCE_DIR/network-recovery.timer" /etc/systemd/system/
+    sudo cp "$SCRIPT_SOURCE_DIR/health-agent.service" /etc/systemd/system/
+    sudo cp "$SCRIPT_SOURCE_DIR/health-agent.timer" /etc/systemd/system/
+    sudo cp "$SCRIPT_SOURCE_DIR/network-recovery.service" /etc/systemd/system/
+    sudo cp "$SCRIPT_SOURCE_DIR/network-recovery.timer" /etc/systemd/system/
 
-    systemctl daemon-reload
-    systemctl enable --now health-agent.timer
-    systemctl enable --now network-recovery.timer
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now health-agent.timer
+    sudo systemctl enable --now network-recovery.timer
 
     # 최초 실행
-    "$HEALTH_AGENT_DIR/health-agent.sh" 2>/dev/null || true
+    sudo "$HEALTH_AGENT_DIR/health-agent.sh" 2>/dev/null || true
 
     echo "Health Agent 설치 완료"
     echo "  - 헬스체크: 1분마다 실행"
