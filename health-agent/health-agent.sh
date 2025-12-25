@@ -60,16 +60,16 @@ get_cpu_info() {
 }
 
 get_memory_info() {
-    # 메모리 정보 (MB 단위)
-    MEM_TOTAL=$(free -m | awk '/^Mem:/{print $2}')
-    MEM_USED=$(free -m | awk '/^Mem:/{print $3}')
-    MEM_FREE=$(free -m | awk '/^Mem:/{print $4}')
-    MEM_AVAILABLE=$(free -m | awk '/^Mem:/{print $7}')
+    # 메모리 정보 (MB 단위) - LANG=C로 영문 출력 강제
+    MEM_TOTAL=$(LANG=C free -m | awk '/^Mem:/{print $2}')
+    MEM_USED=$(LANG=C free -m | awk '/^Mem:/{print $3}')
+    MEM_FREE=$(LANG=C free -m | awk '/^Mem:/{print $4}')
+    MEM_AVAILABLE=$(LANG=C free -m | awk '/^Mem:/{print $7}')
     MEM_USAGE_PCT=$((MEM_USED * 100 / MEM_TOTAL))
 
     # 스왑 정보
-    SWAP_TOTAL=$(free -m | awk '/^Swap:/{print $2}')
-    SWAP_USED=$(free -m | awk '/^Swap:/{print $3}')
+    SWAP_TOTAL=$(LANG=C free -m | awk '/^Swap:/{print $2}')
+    SWAP_USED=$(LANG=C free -m | awk '/^Swap:/{print $3}')
     if [ "$SWAP_TOTAL" -gt 0 ]; then
         SWAP_USAGE_PCT=$((SWAP_USED * 100 / SWAP_TOTAL))
     else
