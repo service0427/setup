@@ -14,7 +14,7 @@
 # set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.3.1"
+SCRIPT_VERSION="1.3.2"
 
 # 변수 초기화
 ANYDESK_INSTALLED=0
@@ -287,14 +287,41 @@ fi
 #---------------------------------------
 # 11. CUPS (프린터) 서비스 비활성화
 #---------------------------------------
-echo "[11/24] CUPS 프린터 서비스 비활성화..."
-if systemctl is-active --quiet cups.service 2>/dev/null; then
-    sudo systemctl stop cups.service cups-browsed.service 2>/dev/null || true
-    sudo systemctl disable cups.service cups-browsed.service 2>/dev/null || true
-    echo "CUPS 서비스 비활성화 완료"
-else
-    echo "CUPS 이미 비활성화됨"
-fi
+echo "[11/24] 불필요한 서비스 비활성화..."
+
+# CUPS 프린터 서비스
+sudo systemctl stop cups.service cups-browsed.service 2>/dev/null || true
+sudo systemctl disable cups.service cups-browsed.service 2>/dev/null || true
+
+# Avahi (mDNS/DNS-SD) - 네트워크 서비스 검색, 자동화에 불필요
+sudo systemctl stop avahi-daemon.service avahi-daemon.socket 2>/dev/null || true
+sudo systemctl disable avahi-daemon.service avahi-daemon.socket 2>/dev/null || true
+
+# ModemManager - 모뎀 관리, 서버에 불필요
+sudo systemctl stop ModemManager.service 2>/dev/null || true
+sudo systemctl disable ModemManager.service 2>/dev/null || true
+
+# Kerneloops - 커널 충돌 리포트
+sudo systemctl stop kerneloops.service 2>/dev/null || true
+sudo systemctl disable kerneloops.service 2>/dev/null || true
+
+# PackageKit - GUI 패키지 관리 (apt 사용)
+sudo systemctl stop packagekit.service 2>/dev/null || true
+sudo systemctl disable packagekit.service 2>/dev/null || true
+
+# Ubuntu Advantage - Ubuntu Pro 서비스
+sudo systemctl stop ubuntu-advantage.service 2>/dev/null || true
+sudo systemctl disable ubuntu-advantage.service 2>/dev/null || true
+sudo systemctl stop ubuntu-advantage-desktop-daemon.service 2>/dev/null || true
+sudo systemctl disable ubuntu-advantage-desktop-daemon.service 2>/dev/null || true
+
+# 부팅 스플래시 (Plymouth) - 부팅 22초 절약
+sudo systemctl disable plymouth-quit-wait.service 2>/dev/null || true
+
+# NetworkManager-wait-online - 부팅 5초 절약 (네트워크 대기 불필요)
+sudo systemctl disable NetworkManager-wait-online.service 2>/dev/null || true
+
+echo "불필요한 서비스 비활성화 완료"
 
 #---------------------------------------
 # 12. 자동 업데이트 비활성화
