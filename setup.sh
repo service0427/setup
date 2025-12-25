@@ -14,7 +14,7 @@
 # set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.3.3"
+SCRIPT_VERSION="1.3.4"
 
 # 변수 초기화
 ANYDESK_INSTALLED=0
@@ -597,32 +597,59 @@ echo "GUI 및 사용자 서비스 최적화 완료"
 #---------------------------------------
 echo "[20/24] GUI 외관 설정..."
 
-# 화면 꺼짐 방지
-sudo -u $REAL_USER gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
+# 첫 로그인 시 GUI 설정 적용을 위한 autostart 스크립트 생성
+AUTOSTART_DIR="$REAL_HOME/.config/autostart"
+SETUP_SCRIPT="$REAL_HOME/.config/setup-gui-once.sh"
+
+mkdir -p "$AUTOSTART_DIR"
+
+# GUI 설정 스크립트 생성
+cat << 'GUISCRIPT' > "$SETUP_SCRIPT"
+#!/bin/bash
+# 첫 로그인 시 GUI 설정 적용 (1회 실행 후 자동 삭제)
+
+sleep 3  # GNOME 완전 로드 대기
 
 # 다크모드
-sudo -u $REAL_USER gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-dark'
+
+# 화면 꺼짐 방지
+gsettings set org.gnome.desktop.session idle-delay 0
 
 # 애니메이션 비활성화
-sudo -u $REAL_USER gsettings set org.gnome.desktop.interface enable-animations false 2>/dev/null || true
+gsettings set org.gnome.desktop.interface enable-animations false
 
 # Dock 정리 (Chrome, Terminal만)
-sudo -u $REAL_USER gsettings set org.gnome.shell favorite-apps "['google-chrome.desktop', 'org.gnome.Terminal.desktop']" 2>/dev/null || true
-
-# 휴지통 Dock에 표시
-sudo -u $REAL_USER gsettings set org.gnome.shell.extensions.dash-to-dock show-trash true 2>/dev/null || true
-
-# 바탕화면 설정 (Ubuntu 22.04 Jellyfish 다크)
-sudo -u $REAL_USER gsettings set org.gnome.desktop.background picture-uri 'file:///usr/share/backgrounds/warty-final-ubuntu.png' 2>/dev/null || true
-sudo -u $REAL_USER gsettings set org.gnome.desktop.background picture-uri-dark 'file:///usr/share/backgrounds/jj_dark_by_Hiking93.jpg' 2>/dev/null || true
-sudo -u $REAL_USER gsettings set org.gnome.desktop.background picture-options 'zoom' 2>/dev/null || true
+gsettings set org.gnome.shell favorite-apps "['google-chrome.desktop', 'org.gnome.Terminal.desktop']"
 
 # 바탕화면 아이콘 비활성화
-sudo -u $REAL_USER gsettings set org.gnome.shell.extensions.ding show-home false 2>/dev/null || true
-sudo -u $REAL_USER gsettings set org.gnome.shell.extensions.ding show-trash false 2>/dev/null || true
-sudo -u $REAL_USER gsettings set org.gnome.shell.extensions.ding show-volumes false 2>/dev/null || true
+gsettings set org.gnome.shell.extensions.ding show-home false 2>/dev/null || true
+gsettings set org.gnome.shell.extensions.ding show-trash false 2>/dev/null || true
+gsettings set org.gnome.shell.extensions.ding show-volumes false 2>/dev/null || true
 
-echo "GUI 외관 설정 완료"
+# 실행 완료 후 autostart 항목 삭제 (1회만 실행)
+rm -f "$HOME/.config/autostart/setup-gui-once.desktop"
+rm -f "$HOME/.config/setup-gui-once.sh"
+GUISCRIPT
+
+chmod +x "$SETUP_SCRIPT"
+chown $REAL_USER:$REAL_USER "$SETUP_SCRIPT"
+
+# Autostart 데스크톱 파일 생성
+cat << DESKTOP > "$AUTOSTART_DIR/setup-gui-once.desktop"
+[Desktop Entry]
+Type=Application
+Name=Setup GUI Once
+Exec=$SETUP_SCRIPT
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+DESKTOP
+
+chown $REAL_USER:$REAL_USER "$AUTOSTART_DIR/setup-gui-once.desktop"
+
+echo "GUI 외관 설정 (첫 로그인 시 적용 예정)"
 
 #===============================================================================
 # PART 3: 에이전트 설치
