@@ -14,7 +14,7 @@
 # set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.3.2"
+SCRIPT_VERSION="1.3.3"
 
 # 변수 초기화
 ANYDESK_INSTALLED=0
@@ -579,6 +579,12 @@ sudo -u $REAL_USER gsettings set org.gnome.desktop.privacy remember-app-usage fa
 # 화면 잠금 비활성화
 sudo -u $REAL_USER gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
 sudo -u $REAL_USER gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
+
+# 절전모드 완전 비활성화 (24시간 운영)
+sudo -u $REAL_USER gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing' 2>/dev/null || true
+sudo -u $REAL_USER gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing' 2>/dev/null || true
+sudo -u $REAL_USER gsettings set org.gnome.settings-daemon.plugins.power idle-dim false 2>/dev/null || true
+sudo -u $REAL_USER gsettings set org.gnome.settings-daemon.plugins.power ambient-enabled false 2>/dev/null || true
 
 # 시스템 소리 비활성화
 sudo -u $REAL_USER gsettings set org.gnome.desktop.sound event-sounds false 2>/dev/null || true
