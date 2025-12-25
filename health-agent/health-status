@@ -41,9 +41,9 @@ print_summary() {
     ANYDESK=$(anydesk --get-id 2>/dev/null || echo "N/A")
     UPTIME=$(uptime -p 2>/dev/null || echo "N/A")
 
-    # CPU & Memory
-    CPU=$(top -bn1 | grep "Cpu(s)" | awk '{printf "%.0f", 100 - $8}')
-    MEM=$(free | awk '/^Mem:/{printf "%.0f", $3/$2*100}')
+    # CPU & Memory (LANG=C로 영문 출력 강제)
+    CPU=$(LANG=C top -bn1 | grep "Cpu(s)" | awk '{printf "%.0f", 100 - $8}')
+    MEM=$(LANG=C free | awk '/^Mem:/{printf "%.0f", $3/$2*100}')
     DISK=$(df / | awk 'NR==2{print $5}' | tr -d '%')
 
     # Load
@@ -73,8 +73,11 @@ print_summary() {
     # VPN namespaces
     VPN_NS=$(ip netns list 2>/dev/null | grep -c "U22-\|vpn-" || echo "0")
 
-    # 색상 설정
+    # 색상 설정 (빈 값 방지)
     NC="\033[0m"
+    CPU=${CPU:-0}
+    MEM=${MEM:-0}
+    DISK=${DISK:-0}
     if [ "$CPU" -gt 80 ]; then CPU_COLOR="\033[31m"; elif [ "$CPU" -gt 50 ]; then CPU_COLOR="\033[33m"; else CPU_COLOR="\033[32m"; fi
     if [ "$MEM" -gt 80 ]; then MEM_COLOR="\033[31m"; elif [ "$MEM" -gt 50 ]; then MEM_COLOR="\033[33m"; else MEM_COLOR="\033[32m"; fi
     if [ "$DISK" -gt 80 ]; then DISK_COLOR="\033[31m"; elif [ "$DISK" -gt 50 ]; then DISK_COLOR="\033[33m"; else DISK_COLOR="\033[32m"; fi
