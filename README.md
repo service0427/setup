@@ -19,19 +19,19 @@
 
 ## 한 줄 설치
 
-### 기본 설치 (public 저장소)
+### 완전 새 서버 (curl 없는 경우)
+```bash
+sudo apt update && sudo apt install -y curl && curl -fsSL https://raw.githubusercontent.com/service0427/setup/main/setup.sh | bash
+```
+
+### curl이 이미 있는 경우
 ```bash
 curl -fsSL https://raw.githubusercontent.com/service0427/setup/main/setup.sh | bash
 ```
 
 ### Git Clone 방식
 ```bash
-git clone https://github.com/service0427/setup.git && cd setup && ./setup.sh
-```
-
-### Private 저장소 (토큰 사용)
-```bash
-GITHUB_TOKEN="your_token" git clone https://$GITHUB_TOKEN@github.com/service0427/setup.git && cd setup && ./setup.sh
+sudo apt update && sudo apt install -y git && git clone https://github.com/service0427/setup.git && cd setup && ./setup.sh
 ```
 
 ## 요구사항
@@ -138,7 +138,7 @@ node index-vpn-multi.js --threads 4 --status
 ## 스크립트 구조
 
 ```
-setup.sh (v1.3.4)
+setup.sh (v1.3.6)
 ├── sudo 타임아웃 설정 (재부팅 전까지 유효)
 │
 ├── PART 1: 시스템 설정 (root 권한)
@@ -176,7 +176,7 @@ setup.sh (v1.3.4)
 
 ```
 ========================================
-  셋업 완료! v1.3.4
+  셋업 완료! v1.3.6
 ========================================
 
 [ 시스템 정보 ]
@@ -289,7 +289,7 @@ sudo cp /path/to/setup/health-agent/health-status /opt/health-agent/
 
 ```
 setup/
-├── setup.sh                    # 메인 설치 스크립트 (v1.3.4)
+├── setup.sh                    # 메인 설치 스크립트 (v1.3.6)
 ├── README.md                   # 문서
 └── health-agent/               # 헬스체크 시스템
     ├── health-agent.sh         # 상태 수집 스크립트
@@ -304,6 +304,13 @@ setup/
 ```
 
 ## 변경 이력
+
+### v1.3.6
+- Chrome 키링 팝업 비활성화 (--password-store=basic 플래그 추가)
+
+### v1.3.5
+- Health Agent 설치 시 sudo 권한 추가
+- Python 3.11 기본 설정 제거 (apt_pkg 호환성 유지)
 
 ### v1.3.4
 - GUI 설정 autostart 방식으로 변경 (DBUS 세션 문제 해결)
