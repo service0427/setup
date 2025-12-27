@@ -19,20 +19,11 @@
 
 ## 한 줄 설치
 
-### 완전 새 서버 (curl 없는 경우)
 ```bash
 sudo apt update && sudo apt install -y curl && curl -fsSL https://raw.githubusercontent.com/service0427/setup/main/setup.sh | bash
 ```
 
-### curl이 이미 있는 경우
-```bash
-curl -fsSL https://raw.githubusercontent.com/service0427/setup/main/setup.sh | bash
-```
-
-### Git Clone 방식
-```bash
-sudo apt update && sudo apt install -y git && git clone https://github.com/service0427/setup.git && cd setup && ./setup.sh
-```
+> curl이 이미 설치되어 있으면 `curl -fsSL ... | bash` 부분만 실행해도 됩니다.
 
 ## 요구사항
 
@@ -108,11 +99,9 @@ sudo apt update && sudo apt install -y git && git clone https://github.com/servi
 
 ## 사용법
 
-### 1. 스크립트 다운로드 및 실행
+### 1. 스크립트 실행
 ```bash
-git clone https://github.com/service0427/setup.git
-cd setup
-./setup.sh
+sudo apt update && sudo apt install -y curl && curl -fsSL https://raw.githubusercontent.com/service0427/setup/main/setup.sh | bash
 ```
 
 ### 2. 재부팅
