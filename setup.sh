@@ -188,7 +188,7 @@ echo "[8/24] AnyDesk 설치..."
 
 # AnyDesk 설정값
 ANYDESK_PASSWORD="Tech1324!"
-ANYDESK_LICENSE="WNIX6Z9J66HVIU9"
+ANYDESK_LICENSE="WI2LS484TQ1RXDK"
 
 if ! command -v anydesk &> /dev/null; then
     curl -fsSL https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo tee /etc/apt/keyrings/keys.anydesk.com.asc >/dev/null
