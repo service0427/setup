@@ -14,7 +14,7 @@
 # set -e  # 에러 발생 시 중단
 
 # 버전 정보
-SCRIPT_VERSION="1.3.6"
+SCRIPT_VERSION="1.3.7"
 
 # 변수 초기화
 ANYDESK_INSTALLED=0
@@ -86,9 +86,36 @@ sudo apt install -y \
     im-config  # 한글 입력기 설정용
 
 #---------------------------------------
-# 3. Node.js 22.x 설치
+# 3. NVIDIA 그래픽 드라이버 설치
 #---------------------------------------
-echo "[3/24] Node.js 22.x 설치..."
+echo "[3/25] NVIDIA 그래픽 드라이버 확인..."
+if lspci | grep -iq "vga.*nvidia"; then
+    GPU_MODEL=$(lspci | grep -i "vga.*nvidia" | sed 's/.*\[//' | sed 's/\].*//')
+    echo "  NVIDIA GPU 감지: $GPU_MODEL"
+
+    # 이미 설치되어 있는지 확인
+    if ! nvidia-smi &>/dev/null; then
+        # GT 730 등 구형 카드는 470 드라이버 필요
+        if echo "$GPU_MODEL" | grep -qiE "GT\s*7[0-3]0|GT\s*6[0-9]0|GTX\s*[4-6][0-9]0"; then
+            echo "  구형 GPU 감지, nvidia-driver-470 설치 중..."
+            sudo apt install -y nvidia-driver-470
+        else
+            # 신형 카드는 최신 드라이버
+            echo "  nvidia-driver 설치 중..."
+            sudo apt install -y nvidia-driver-535
+        fi
+        echo "  NVIDIA 드라이버 설치 완료 (재부팅 후 적용)"
+    else
+        echo "  NVIDIA 드라이버 이미 설치됨: $(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null || echo 'OK')"
+    fi
+else
+    echo "  NVIDIA GPU 없음, 스킵"
+fi
+
+#---------------------------------------
+# 4. Node.js 22.x 설치
+#---------------------------------------
+echo "[4/25] Node.js 22.x 설치..."
 if ! command -v node &> /dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     sudo apt-get install -y nodejs
@@ -108,7 +135,7 @@ fi
 #---------------------------------------
 # 4. Python 3.11+ 설치 (deadsnakes PPA)
 #---------------------------------------
-echo "[4/24] Python 3.11 설치..."
+echo "[4/25] Python 3.11 설치..."
 if ! command -v python3.11 &> /dev/null; then
     sudo add-apt-repository -y ppa:deadsnakes/ppa
     sudo apt update
@@ -125,7 +152,7 @@ fi
 #---------------------------------------
 # 5. Google Chrome 설치
 #---------------------------------------
-echo "[5/24] Google Chrome 설치..."
+echo "[5/25] Google Chrome 설치..."
 if ! command -v google-chrome &> /dev/null; then
     sudo install -d -m 0755 /etc/apt/keyrings
     wget -qO- https://dl.google.com/linux/linux_signing_key.pub | sudo tee /etc/apt/keyrings/google.asc >/dev/null
@@ -151,7 +178,7 @@ fi
 #---------------------------------------
 # 6. Playwright/Patchright 브라우저 의존성
 #---------------------------------------
-echo "[6/24] 브라우저 자동화 의존성 설치..."
+echo "[6/25] 브라우저 자동화 의존성 설치..."
 sudo apt install -y \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
@@ -164,7 +191,7 @@ echo "브라우저 의존성 설치 완료"
 #---------------------------------------
 # 7. WireGuard VPN 설치
 #---------------------------------------
-echo "[7/24] WireGuard VPN 설치..."
+echo "[7/25] WireGuard VPN 설치..."
 if ! command -v wg &> /dev/null; then
     sudo apt install -y wireguard wireguard-tools
 
@@ -184,7 +211,7 @@ fi
 #---------------------------------------
 # 8. AnyDesk 설치 및 무인 접속 설정
 #---------------------------------------
-echo "[8/24] AnyDesk 설치..."
+echo "[8/25] AnyDesk 설치..."
 
 # AnyDesk 설정값
 ANYDESK_PASSWORD="Tech1324!"
@@ -242,7 +269,7 @@ fi
 #---------------------------------------
 # 9. 한글 입력기 설치 (fcitx5)
 #---------------------------------------
-echo "[9/24] 한글 입력기 설치..."
+echo "[9/25] 한글 입력기 설치..."
 if ! dpkg -l | grep -q fcitx5-hangul; then
     sudo apt install -y fcitx5 fcitx5-hangul
     sudo -u $REAL_USER im-config -n fcitx5
@@ -254,7 +281,7 @@ fi
 #---------------------------------------
 # 10. Snap 패키지 완전 제거
 #---------------------------------------
-echo "[10/24] Snap 패키지 제거..."
+echo "[10/25] Snap 패키지 제거..."
 if command -v snap &> /dev/null; then
     SNAP_COUNT=$(snap list 2>/dev/null | wc -l)
     if [ "$SNAP_COUNT" -gt 1 ]; then
@@ -295,7 +322,7 @@ fi
 #---------------------------------------
 # 11. CUPS (프린터) 서비스 비활성화
 #---------------------------------------
-echo "[11/24] 불필요한 서비스 비활성화..."
+echo "[11/25] 불필요한 서비스 비활성화..."
 
 # CUPS 프린터 서비스
 sudo systemctl stop cups.service cups-browsed.service 2>/dev/null || true
@@ -334,7 +361,7 @@ echo "불필요한 서비스 비활성화 완료"
 #---------------------------------------
 # 12. 자동 업데이트 비활성화
 #---------------------------------------
-echo "[12/24] 자동 업데이트 비활성화..."
+echo "[12/25] 자동 업데이트 비활성화..."
 sudo systemctl disable --now unattended-upgrades.service 2>/dev/null || true
 sudo systemctl disable --now apt-daily.service apt-daily.timer 2>/dev/null || true
 sudo systemctl disable --now apt-daily-upgrade.service apt-daily-upgrade.timer 2>/dev/null || true
@@ -347,7 +374,7 @@ echo "자동 업데이트 비활성화 완료"
 #---------------------------------------
 # 13. CPU Governor → Performance
 #---------------------------------------
-echo "[13/24] CPU Governor 설정..."
+echo "[13/25] CPU Governor 설정..."
 CURRENT_GOV=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
 if [ "$CURRENT_GOV" != "performance" ]; then
     # cpufrequtils 설치
@@ -372,7 +399,7 @@ fi
 #---------------------------------------
 # 14. 시스템 커널 파라미터 최적화
 #---------------------------------------
-echo "[14/24] 시스템 커널 파라미터 최적화..."
+echo "[14/25] 시스템 커널 파라미터 최적화..."
 
 # swappiness 낮추기 (RAM 우선 사용)
 if ! grep -q "vm.swappiness=10" /etc/sysctl.conf; then
@@ -419,7 +446,7 @@ sudo sysctl -p 2>/dev/null || true
 #---------------------------------------
 # 15. 스왑 파일 설정 (RAM 기반 동적 크기)
 #---------------------------------------
-echo "[15/24] 스왑 파일 설정..."
+echo "[15/25] 스왑 파일 설정..."
 
 # RAM 크기에 따른 스왑 크기 결정
 if [ "$TOTAL_RAM_GB" -le 8 ]; then
@@ -456,7 +483,7 @@ fi
 #---------------------------------------
 # 16. 자동 로그인 + Wayland 비활성화 (AnyDesk 호환)
 #---------------------------------------
-echo "[16/24] 자동 로그인 및 X11 설정..."
+echo "[16/25] 자동 로그인 및 X11 설정..."
 GDM_CONF="/etc/gdm3/custom.conf"
 if [ -f "$GDM_CONF" ]; then
     # Wayland 비활성화 (AnyDesk는 X11 필요)
@@ -489,7 +516,7 @@ fi
 #---------------------------------------
 # 17. sudoers 설정 (자주 사용하는 명령어 NOPASSWD)
 #---------------------------------------
-echo "[17/24] sudoers 설정..."
+echo "[17/25] sudoers 설정..."
 SUDOERS_FILE="/etc/sudoers.d/${REAL_USER}-automation"
 if [ ! -f "$SUDOERS_FILE" ]; then
     cat << EOF | sudo tee "$SUDOERS_FILE" > /dev/null
@@ -538,7 +565,7 @@ echo ""
 #---------------------------------------
 # 18. GNOME 검색 & Tracker 비활성화
 #---------------------------------------
-echo "[18/24] GNOME 검색 & Tracker 비활성화..."
+echo "[18/25] GNOME 검색 & Tracker 비활성화..."
 
 # GNOME 검색 프로바이더 비활성화
 sudo -u $REAL_USER gsettings set org.gnome.desktop.search-providers disable-external true 2>/dev/null || true
@@ -555,7 +582,7 @@ echo "GNOME 검색 & Tracker 비활성화 완료"
 #---------------------------------------
 # 19. 불필요 사용자 서비스 비활성화 + GUI 설정
 #---------------------------------------
-echo "[19/24] GUI 및 사용자 서비스 최적화..."
+echo "[19/25] GUI 및 사용자 서비스 최적화..."
 
 # Evolution 데이터 서버
 sudo -u $REAL_USER systemctl --user stop evolution-addressbook-factory.service 2>/dev/null || true
@@ -603,7 +630,7 @@ echo "GUI 및 사용자 서비스 최적화 완료"
 #---------------------------------------
 # 20. GUI 설정 (GNOME)
 #---------------------------------------
-echo "[20/24] GUI 외관 설정..."
+echo "[20/25] GUI 외관 설정..."
 
 # 첫 로그인 시 GUI 설정 적용을 위한 autostart 스크립트 생성
 AUTOSTART_DIR="$REAL_HOME/.config/autostart"
@@ -670,7 +697,7 @@ echo ""
 #---------------------------------------
 # 21. Patchright 브라우저 설치
 #---------------------------------------
-echo "[21/24] Patchright 브라우저 설치..."
+echo "[21/25] Patchright 브라우저 설치..."
 PATCHRIGHT_CACHE="$REAL_HOME/.cache/ms-playwright"
 
 if [ ! -d "$PATCHRIGHT_CACHE" ] || [ -z "$(ls -A $PATCHRIGHT_CACHE 2>/dev/null)" ]; then
@@ -705,7 +732,7 @@ fi
 #---------------------------------------
 # 22. vpn_coupang_v1 에이전트 설치
 #---------------------------------------
-echo "[22/24] vpn_coupang_v1 에이전트 설치..."
+echo "[22/25] vpn_coupang_v1 에이전트 설치..."
 AGENT_DIR="$REAL_HOME/vpn_coupang_v1"
 
 # GitHub 토큰 (private 저장소 접근용) - 실제 운영 시 환경변수로 전달 권장
@@ -739,7 +766,7 @@ fi
 #---------------------------------------
 # 23. Health Agent 설치 (헬스체크 & 네트워크 복구)
 #---------------------------------------
-echo "[23/24] Health Agent 설치..."
+echo "[23/25] Health Agent 설치..."
 HEALTH_AGENT_DIR="/opt/health-agent"
 SCRIPT_SOURCE_DIR="$SCRIPT_DIR/health-agent"
 
@@ -791,7 +818,7 @@ fi
 #---------------------------------------
 # 24. 최종 확인
 #---------------------------------------
-echo "[24/24] 최종 확인..."
+echo "[25/25] 최종 확인..."
 
 # 모든 서비스 상태 확인
 echo "  서비스 상태 확인 중..."
